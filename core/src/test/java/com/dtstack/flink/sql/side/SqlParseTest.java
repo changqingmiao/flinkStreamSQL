@@ -89,6 +89,7 @@ public class SqlParseTest {
                 "            and a.pv=10      ) as d";
 
         test(sql);
+
     }
 
     public void test(String sql) throws Exception {
