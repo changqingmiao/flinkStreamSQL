@@ -22,18 +22,22 @@ package com.dtstack.flink.sql;
 
 import com.dtstack.flink.sql.classloader.DtClassLoader;
 import com.dtstack.flink.sql.enums.ECacheType;
-import com.dtstack.flink.sql.parser.*;
+import com.dtstack.flink.sql.parser.CreateFuncParser;
+import com.dtstack.flink.sql.parser.CreateTmpTableParser;
+import com.dtstack.flink.sql.parser.InsertSqlParser;
+import com.dtstack.flink.sql.parser.SqlParser;
+import com.dtstack.flink.sql.parser.SqlTree;
 import com.dtstack.flink.sql.side.SideSqlExec;
 import com.dtstack.flink.sql.side.SideTableInfo;
+import com.dtstack.flink.sql.sink.StreamSinkFactory;
+import com.dtstack.flink.sql.source.StreamSourceFactory;
 import com.dtstack.flink.sql.table.SourceTableInfo;
 import com.dtstack.flink.sql.table.TableInfo;
 import com.dtstack.flink.sql.table.TargetTableInfo;
-import com.dtstack.flink.sql.sink.StreamSinkFactory;
-import com.dtstack.flink.sql.source.StreamSourceFactory;
 import com.dtstack.flink.sql.util.DtStringUtil;
-import com.dtstack.flink.sql.watermarker.WaterMarkerAssigner;
 import com.dtstack.flink.sql.util.FlinkUtil;
 import com.dtstack.flink.sql.util.PluginUtil;
+import com.dtstack.flink.sql.watermarker.WaterMarkerAssigner;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlNode;
@@ -61,7 +65,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.types.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,6 +106,7 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
+        // 程序运行的入口，最终都会执行到这里
         Options options = new Options();
         options.addOption("sql", true, "sql config");
         options.addOption("name", true, "job name");
@@ -130,14 +134,18 @@ public class Main {
         Preconditions.checkNotNull(localSqlPluginPath, "parameters of localSqlPluginPath is required");
 
         sql = URLDecoder.decode(sql, Charsets.UTF_8.name());
+
+        // 将编译生成的 plugins 目录放入 SqlParser 对象的静态成员变量
         SqlParser.setLocalSqlPluginRoot(localSqlPluginPath);
 
+        // 获取 UDF 的 jar
         List<String> addJarFileList = Lists.newArrayList();
         if(!Strings.isNullOrEmpty(addJarListStr)){
             addJarListStr = URLDecoder.decode(addJarListStr, Charsets.UTF_8.name());
             addJarFileList = objMapper.readValue(addJarListStr, List.class);
         }
 
+        // 替换 JVM 的 classLoader
         ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
         DtClassLoader dtClassLoader = new DtClassLoader(new URL[]{}, threadClassLoader);
         Thread.currentThread().setContextClassLoader(dtClassLoader);
@@ -149,12 +157,16 @@ public class Main {
             parentClassloader = dtClassLoader;
         }
 
-        confProp = URLDecoder.decode(confProp, Charsets.UTF_8.toString());
         Properties confProperties = PluginUtil.jsonStrToObject(confProp, Properties.class);
+
+        // 获取 flink 的 env、tableEnv
         StreamExecutionEnvironment env = getStreamExeEnv(confProperties, deployMode);
         StreamTableEnvironment tableEnv = StreamTableEnvironment.getTableEnvironment(env);
 
         List<URL> jarURList = Lists.newArrayList();
+
+        // 进行 sql 解析， SqlParser 是sql解析的入口类，通过多态调用IParser的子类，
+        // 分别进行不同类型的sql解析，然后将解析的结果放入 SqlTree 对象。
         SqlTree sqlTree = SqlParser.parseSql(sql);
 
         //Get External jar to load
@@ -168,7 +180,8 @@ public class Main {
 
         //register udf
         registerUDF(sqlTree, jarURList, parentClassloader, tableEnv);
-        //register table schema
+
+        //将上述得到的各个表注册到 flink 的 env 和 tableEnv 中
         registerTable(sqlTree, env, tableEnv, localSqlPluginPath, remoteSqlPluginPath, sideTableMap, registerTableCache);
 
         SideSqlExec sideSqlExec = new SideSqlExec();
@@ -222,6 +235,7 @@ public class Main {
             ((MyLocalStreamEnvironment) env).setClasspaths(urlList);
         }
 
+        // 在执行该句之前，都可以通过设置断点，进行 debug 方便程序的阅读与理解
         env.execute(name);
     }
 
@@ -267,14 +281,16 @@ public class Main {
         Set<URL> classPathSet = Sets.newHashSet();
         WaterMarkerAssigner waterMarkerAssigner = new WaterMarkerAssigner();
         for (TableInfo tableInfo : sqlTree.getTableInfoMap().values()) {
-
             if (tableInfo instanceof SourceTableInfo) {
-
                 SourceTableInfo sourceTableInfo = (SourceTableInfo) tableInfo;
+                // 调用kafka09，kafka10 各子模块中的 KafkaSource，通过继承 FlinkKafkaConsumer09<Row>实现了
+                // 自己的 CustomerKafka09Consumer 和 json 格式的数据解析器 CustomerJsonDeserialization，最后返回 Table 对象。
                 Table table = StreamSourceFactory.getStreamSource(sourceTableInfo, env, tableEnv, localSqlPluginPath);
+
                 tableEnv.registerTable(sourceTableInfo.getAdaptName(), table);
                 //Note --- parameter conversion function can not be used inside a function of the type of polymerization
                 //Create table in which the function is arranged only need adaptation sql
+                // 一会 debug 看一下 adaptSql 具体是什么？？？
                 String adaptSql = sourceTableInfo.getAdaptSelectSql();
                 Table adaptTable = adaptSql == null ? table : tableEnv.sqlQuery(adaptSql);
 

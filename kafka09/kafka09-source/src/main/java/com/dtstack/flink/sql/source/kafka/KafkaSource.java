@@ -27,7 +27,6 @@ import com.dtstack.flink.sql.util.DtStringUtil;
 import com.dtstack.flink.sql.util.PluginUtil;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -75,15 +74,20 @@ public class KafkaSource implements IStreamSourceGener<Table> {
         // only required for Kafka 0.8
         //TODO props.setProperty("zookeeper.connect", kafka09SourceTableInfo.)
 
+        // 根据输入表中字段数量大小声明  TypeInformation[]
         TypeInformation[] types = new TypeInformation[kafka09SourceTableInfo.getFields().length];
         for(int i = 0; i< kafka09SourceTableInfo.getFieldClasses().length; i++){
             types[i] = TypeInformation.of(kafka09SourceTableInfo.getFieldClasses()[i]);
         }
 
         TypeInformation<Row> typeInformation = new RowTypeInfo(types, kafka09SourceTableInfo.getFields());
+
+        // FlinkKafkaConsumer09<Row> 是 flink connector 定义好的，如果想实现自己个性化需求只需继承它即可
         FlinkKafkaConsumer09<Row> kafkaSrc;
         if (BooleanUtils.isTrue(kafka09SourceTableInfo.getTopicIsPattern())) {
+            // FlinkKafkaConsumer09<Row> 支持消费基于正则表达的书写的多个 topic 中的数据
             kafkaSrc = new CustomerKafka09Consumer(Pattern.compile(topicName),
+                    // 支持 Json 格式的数据解析
                     new CustomerJsonDeserialization(typeInformation), props);
         } else {
             kafkaSrc = new CustomerKafka09Consumer(topicName,

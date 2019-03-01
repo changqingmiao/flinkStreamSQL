@@ -30,9 +30,36 @@ import java.util.regex.Pattern;
 
 /**
  * 解析创建表结构sql
- * Date: 2018/6/26
- * Company: www.dtstack.com
- * @author xuchao
+      CREATE TABLE MyTable(
+        name varchar,
+        channel varchar,
+        pv int,
+        xctime bigint,
+        CHARACTER_LENGTH(channel) AS timeLeng
+        )WITH(
+        type ='kafka09',
+        bootstrapServers ='172.16.8.198:9092',
+        zookeeperQuorum ='172.16.8.198:2181/kafka',
+        offsetReset ='latest',
+        topic ='nbTest1',
+        parallelism ='1'
+        );
+
+    解析后的结构为：
+     key: MyTable,
+     value:
+         tableName :
+            MyTable ,
+         fieldsInfoStr:
+            name varchar,     channel varchar,     pv int,     xctime bigint,     CHARACTER_LENGTH(channel) AS timeLeng
+         propMap:
+             "type" -> "kafka09"
+             "bootstrapServers" -> "172.16.8.198:9092"
+             "zookeeperQuorum" -> "172.16.8.198:2181/kafka"
+             "offsetReset" -> "latest"
+             "topic" -> "nbTest1"
+            "parallelism" -> "1"
+ *
  */
 
 public class CreateTableParser implements IParser {

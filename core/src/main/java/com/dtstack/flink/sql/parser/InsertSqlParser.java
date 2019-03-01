@@ -39,9 +39,37 @@ import static org.apache.calcite.sql.SqlKind.IDENTIFIER;
 /**
  * 解析flink sql
  * sql 只支持 insert 开头的
- * Date: 2018/6/22
- * Company: www.dtstack.com
- * @author xuchao
+     insert into  MyResult
+         select
+             d.channel,
+             d.info
+         from
+             ( select  a.*, b.info from MyTable a join sideTable b on a.channel=b.name where a.channel = 'xc2' and a.pv=10 )
+        as d
+
+   解析后：
+     sourceTableList:
+        MyTable, sideTable
+
+     targetTableList:
+        MyResult
+
+     execSql:
+         INSERT INTO `MyResult`
+            (SELECT
+                `d`.`channel`, `d`.`info`
+            FROM
+                (SELECT
+                    `a`.*, `b`.`info`
+                FROM
+                    `MyTable` AS `a`
+                INNER JOIN
+                    `sideTable` AS `b` ON `a`.`channel` = `b`.`name`
+                WHERE
+                    `a`.`channel` = 'xc2'
+                    AND `a`.`pv` = 10
+                ) AS `d`
+            )
  */
 
 public class InsertSqlParser implements IParser {

@@ -41,6 +41,7 @@ public class SqlTree {
 
     private Map<String, CreateTableParser.SqlParserResult> preDealTableMap = Maps.newHashMap();
 
+    //存储了sql语句中涉及的所有输入表，输出表，维表的名称、字段、字段类型、连接信息
     private Map<String, TableInfo> tableInfoMap = Maps.newLinkedHashMap();
 
     private List<InsertSqlParser.SqlParseResult> execSqlList = Lists.newArrayList();
@@ -95,5 +96,42 @@ public class SqlTree {
 
     public void addTableInfo(String tableName, TableInfo tableInfo){
         tableInfoMap.put(tableName, tableInfo);
+    }
+
+
+    // 重写 toString
+    @Override
+    public String toString(){
+
+        StringBuffer strBuffer = new StringBuffer();
+        for (int i = 0; i < functionList.size(); i++) {
+            strBuffer.append("functionList: " + functionList.get(i).getName() + "," + functionList.get(i).getClassName() + "," + functionList.get(i).getType());
+            strBuffer.append(",");
+        }
+        strBuffer.append("/r/n");
+
+        for (int i = 0; i < execSqlList.size(); i++) {
+            strBuffer.append("execSqlList: " + execSqlList.get(i).getSourceTableList() + "," + execSqlList.get(i).getTargetTableList() + "," + execSqlList.get(i).getExecSql());
+            strBuffer.append(",");
+        }
+        strBuffer.append("/r/n");
+
+
+        strBuffer.append("preDealTableMap： ");
+        for (Map.Entry<String, CreateTableParser.SqlParserResult> entry : preDealTableMap.entrySet()) {
+            strBuffer.append("Key = " + entry.getKey() + ", Value = " + entry.getValue());
+            strBuffer.append(",");
+        }
+        strBuffer.append("/r/n");
+
+
+        strBuffer.append("tableInfoMap： ");
+        for (Map.Entry<String, TableInfo> entry : tableInfoMap.entrySet()) {
+            strBuffer.append("Key = " + entry.getKey() + ", Value = " + entry.getValue());
+            strBuffer.append(",");
+        }
+        strBuffer.append("/r/n");
+
+        return strBuffer.toString();
     }
 }

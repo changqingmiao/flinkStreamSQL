@@ -20,7 +20,6 @@
 
 package com.dtstack.flink.sql.table;
 
-import com.dtstack.flink.sql.enums.ECacheType;
 import com.dtstack.flink.sql.enums.ETableType;
 import com.dtstack.flink.sql.parser.CreateTableParser;
 import com.dtstack.flink.sql.side.SideTableInfo;
@@ -50,10 +49,16 @@ public class TableInfoParser {
 
     private final static Pattern SIDE_PATTERN = Pattern.compile(SIDE_TABLE_SIGN);
 
+    // 用于存储所有支持的输入表类型：<kafka09, KafkaSourceParser>  <kafka10, KafkaSourceParser> ...
+    // 继承关系：AbsTableParser -> AbsSourceParser -> KafkaSourceParser（各个source工程中）
     private  Map<String, AbsTableParser> sourceTableInfoMap = Maps.newConcurrentMap();
 
+    // 用于存储所有支持的输出表类型：<hbase, HbaseSinkParser>  ...
+    // 继承关系: AbsTableParser -> HbaseSinkParser（各个sink工程中）
     private  Map<String, AbsTableParser> targetTableInfoMap = Maps.newConcurrentMap();
 
+    // 用于存储所有支持的维表类型：<hbase, HbaseSideParser> ...
+    // 继承关系: AbsTableParser -> AbsSideTableParser -> HbaseSideParser
     private  Map<String, AbsTableParser> sideTableInfoMap = Maps.newConcurrentMap();
 
     //Parsing loaded plugin
@@ -68,15 +73,20 @@ public class TableInfoParser {
         }
 
         if(tableType == ETableType.SOURCE.getType()){
+            // 判断输入表是不是维表
             boolean isSideTable = checkIsSideTable(parserResult.getFieldsInfoStr());
 
             if(!isSideTable){
+                // 输入表不是维表
                 absTableParser = sourceTableInfoMap.get(type);
+                // 将所有支持的输入表类型存入sourceTableInfoMap，
                 if(absTableParser == null){
+                    //
                     absTableParser = StreamSourceFactory.getSqlParser(type, localPluginRoot);
                     sourceTableInfoMap.put(type, absTableParser);
                 }
             }else{
+                // 输入表是维表
                 absTableParser = sideTableInfoMap.get(type);
                 if(absTableParser == null){
                     String cacheType = MathUtil.getString(props.get(SideTableInfo.CACHE_KEY));

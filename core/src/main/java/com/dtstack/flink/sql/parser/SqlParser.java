@@ -44,6 +44,7 @@ public class SqlParser {
 
     private static String LOCAL_SQL_PLUGIN_ROOT;
 
+    // 创建所有支持的sql类型的解析对象，利用多态进行解析
     private static List<IParser> sqlParserList = Lists.newArrayList(CreateFuncParser.newInstance(),
             CreateTableParser.newInstance(), InsertSqlParser.newInstance(), CreateTmpTableParser.newInstance());
 
@@ -74,8 +75,12 @@ public class SqlParser {
                 .replace("\t", " ").trim();
 
         List<String> sqlArr = DtStringUtil.splitIgnoreQuota(sql, SQL_DELIMITER);
+
+        // 接收 sql 解析的结果
         SqlTree sqlTree = new SqlTree();
         TableInfoParser tableInfoParser = new TableInfoParser();
+
+        // 依次循环进行不同类型的 sql 解析
         for(String childSql : sqlArr){
             if(Strings.isNullOrEmpty(childSql)){
                 continue;
@@ -94,6 +99,8 @@ public class SqlParser {
                 throw new RuntimeException(String.format("%s:Syntax does not support,the format of SQL like insert into tb1 select * from tb2.", childSql));
             }
         }
+        //为了调试自己加的打印信息
+//        sqlTree.toString();
 
         //解析exec-sql
         if(sqlTree.getExecSqlList().size() == 0){
@@ -105,6 +112,7 @@ public class SqlParser {
             List<String> targetTableList = result.getTargetTableList();
             Set<String> tmpTableList = sqlTree.getTmpTableMap().keySet();
 
+            // 对每个 insert into 语句中输入表遍历，进一步解析表的字段与对应的字段类型以及连接信息，存入sqlTree 的 tableInfoMap 成员变量中
             for(String tableName : sourceTableList){
                 if (!tmpTableList.contains(tableName)){
                     CreateTableParser.SqlParserResult createTableResult = sqlTree.getPreDealTableMap().get(tableName);
@@ -118,6 +126,7 @@ public class SqlParser {
                 }
             }
 
+            // 对每个 insert into 语句中输出表遍历，进一步解析表的字段与对应的字段类型以及连接信息，存入sqlTree 的 tableInfoMap 成员变量中
             for(String tableName : targetTableList){
                 if (!tmpTableList.contains(tableName)){
                     CreateTableParser.SqlParserResult createTableResult = sqlTree.getPreDealTableMap().get(tableName);
@@ -132,6 +141,7 @@ public class SqlParser {
             }
         }
 
+        // 对每个 insert into 语句中维表遍历，进一步解析表的字段与对应的字段类型以及连接信息，存入sqlTree 的 tableInfoMap 成员变量中
         for (CreateTmpTableParser.SqlParserResult result : sqlTree.getTmpSqlList()){
             List<String> sourceTableList = result.getSourceTableList();
             for(String tableName : sourceTableList){

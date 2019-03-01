@@ -26,7 +26,6 @@ import com.dtstack.flink.sql.table.AbsSourceParser;
 import com.dtstack.flink.sql.table.SourceTableInfo;
 import com.dtstack.flink.sql.util.DtStringUtil;
 import com.dtstack.flink.sql.util.PluginUtil;
-import org.apache.flink.calcite.shaded.com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -53,7 +52,9 @@ public class StreamSourceFactory {
         DtClassLoader dtClassLoader = (DtClassLoader) classLoader;
         PluginUtil.addPluginJar(pluginJarPath, dtClassLoader);
 
+        // eg：将 kafka09 变成 kafka
         String typeNoVersion = DtStringUtil.getPluginTypeWithoutVersion(pluginType);
+        // eg:com.dtstack.flink.sql.source.kafka.table.KafkaSourceParser,由此进入 kafka09，kafka10 子模块中的 KafkaSourceParser
         String className = PluginUtil.getSqlParserClassName(typeNoVersion, CURR_TYPE);
         Class<?> sourceParser = dtClassLoader.loadClass(className);
         if(!AbsSourceParser.class.isAssignableFrom(sourceParser)){
