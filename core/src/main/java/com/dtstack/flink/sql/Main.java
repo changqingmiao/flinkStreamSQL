@@ -157,6 +157,7 @@ public class Main {
             parentClassloader = dtClassLoader;
         }
 
+        confProp = URLDecoder.decode(confProp, Charsets.UTF_8.toString());
         Properties confProperties = PluginUtil.jsonStrToObject(confProp, Properties.class);
 
         // 获取 flink 的 env、tableEnv
