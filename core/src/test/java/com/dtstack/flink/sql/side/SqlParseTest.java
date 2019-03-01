@@ -8,9 +8,6 @@ import org.junit.Test;
 import java.net.URLEncoder;
 import java.util.List;
 
-/**
- * Created by miaochangqing1 on 2019/2/28.
- */
 public class SqlParseTest {
 
     @Test
